@@ -10,6 +10,7 @@ def test_sim(capsys):
         keep = False
         backendargs = None
         setup = True
+        target = None
         build_only = False
         def __init__(self, system):
             self.system = system
