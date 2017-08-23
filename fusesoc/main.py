@@ -170,6 +170,37 @@ def list_systems(args):
         if core.get_tool({'flow' : 'synth', 'tool' : None}):
             print(str(core.name))
 
+def run_flow(args):
+    stages = (args.setup, args.build, args.launch)
+    #Run all stages by default if no stage flags are set
+    if  stages == (False, False, False):
+        do_configure = True
+        do_build     = True
+        do_run       = True
+        #FIXME: Is (True, False, True a valid combination?
+#    elif stages == (True, False, True):
+#        logger.error("Configure and run without build is invalid")
+#        exit(1)
+    else:
+        do_configure = args.setup
+        do_build     = args.build
+        do_run       = args.launch
+
+    #FIXME: Need something clever here instead of a hard-coded list.
+    #Problem is that tool_type is used to calculate work_root and
+    #select error messages in run_backend. What to do?
+    if args.tool in ['ghdl', 'icarus', 'isim', 'modelsim', 'rivierapro', 'verilator', 'xsim']:
+        tool_type = 'simulator'
+    elif args.tool in ['icestorm', 'ise', 'quartus', 'vivado']:
+        tool_type = 'build'
+
+    flags = {'tool'   : args.tool,
+             'target' : args.target}
+    run_backend(tool_type,
+                not args.no_export,
+                do_configure, do_build, do_run,
+                flags, args.system, args.backendargs)
+
 def run_backend(tool_type, export, do_configure, do_build, do_run, flags, system, backendargs):
     if tool_type == 'simulator':
         tool_type_short = 'sim'
@@ -366,6 +397,18 @@ def main():
     # list-paths subparser
     parser_list_paths = subparsers.add_parser('list-paths', help='Display the search order for core root paths')
     parser_list_paths.set_defaults(func=list_paths)
+
+    # run subparser
+    parser_run = subparsers.add_parser('run', help="Start a tool flow")
+    parser_run.add_argument('tool', help="Select tool flow")
+    parser_sim.add_argument('--no-export', action='store_true', help='Reference source files from their current location instead of exporting to a build tree')
+    parser_run.add_argument('--setup', action='store_true', help="Run setup stage")
+    parser_run.add_argument('--build', action='store_true', help="Run build stage")
+    parser_run.add_argument('--launch', action='store_true', help="Run launch stage")
+    parser_run.add_argument('--target', help='Override default target')
+    parser_run.add_argument('system', help='Select a system to operate on')
+    parser_run.add_argument('backendargs', nargs=argparse.REMAINDER)
+    parser_run.set_defaults(func=run_flow)
 
     # sim subparser
     parser_sim = subparsers.add_parser('sim', help='Setup and run a simulation')
