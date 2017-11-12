@@ -20,8 +20,8 @@ class Isim(Simulator):
         (src_files, self.incdirs) = self._get_fileset_files()
         for src_file in src_files:
             if src_file.file_type in ["verilogSource",
-		                      "verilogSource-95",
-		                      "verilogSource-2001"]:
+                              "verilogSource-95",
+                              "verilogSource-2001"]:
                 f1.write('verilog work ' + src_file.name + '\n')
             elif src_file.file_type.startswith("vhdlSource"):
                 f1.write('vhdl work ' + src_file.logical_name + " " + src_file.name + '\n')
@@ -31,6 +31,8 @@ class Isim(Simulator):
                                         "systemVerilogSource-3.1a",
                                         "verilogSource-2005"]:
                 f1.write('sv work ' + src_file.name + '\n')
+            elif src_file.file_type in ["user"]:
+                pass
             else:
                 _s = "{} has unknown file type '{}'"
                 logger.warning(_s.format(src_file.name,
@@ -41,6 +43,7 @@ class Isim(Simulator):
         f2 = open(os.path.join(self.work_root,tcl_file),'w')
         f2.write('wave log -r /\n')
         f2.write('run all\n')
+        f2.write('quit\n')
         f2.close()
 
     def build_main(self):

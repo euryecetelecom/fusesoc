@@ -1,5 +1,6 @@
 import logging
 import os
+import shutil
 
 from okonomiyaki.versions import EnpkgVersion
 
@@ -134,7 +135,7 @@ class CoreManager(object):
                 core = Core(file)
                 self.db.add(core)
             except SyntaxError as e:
-                w = "Failed to parse " + file + ": " + e.msg
+                w = "Parse error. Ignoring file " + file + ": " + e.msg
                 logger.warning(w)
             except ImportError as e:
                 logger.warning('Failed to register "{}" due to unknown provider: {}'.format(file, str(e)))
@@ -180,7 +181,16 @@ class CoreManager(object):
         c.name.relation = "=="
         return c
 
-    def get_eda_api(self, vlnv, flags, export_root=None):
+    def setup(self, vlnv, flags, work_root, export_root=None):
+        if os.path.exists(work_root):
+            for f in os.listdir(work_root):
+                if os.path.isdir(os.path.join(work_root, f)):
+                    shutil.rmtree(os.path.join(work_root, f))
+                else:
+                    os.remove(os.path.join(work_root, f))
+        else:
+            os.makedirs(work_root)
+
         logger.debug("Building EDA API")
         def merge_dict(d1, d2):
             for key, value in d2.items():
@@ -199,6 +209,9 @@ class CoreManager(object):
 
         _flags = flags.copy()
         for core in cores:
+            logger.info("Preparing " + str(core.name))
+            core.setup()
+
             logger.debug("Collecting EDA API parameters from {}".format(str(core.name)))
             _flags['is_toplevel'] = (core.name == vlnv)
 
@@ -217,6 +230,8 @@ class CoreManager(object):
             #Extract files
             if export_root:
                 files_root = os.path.join(export_root, core.sanitized_name)
+                dst_dir = os.path.join(export_root, core.sanitized_name)
+                core.export(dst_dir, _flags)
             else:
                 files_root = core.files_root
 
@@ -230,8 +245,18 @@ class CoreManager(object):
             merge_dict(scripts, _scripts)
 
             for file in core.get_files(_flags):
+                if file.copyto:
+                    _name = file.copyto
+                    dst = os.path.join(work_root, _name)
+                    _dstdir = os.path.dirname(dst)
+                    if not os.path.exists(_dstdir):
+                        os.makedirs(_dstdir)
+                    shutil.copy2(os.path.join(files_root, file.name),
+                                 dst)
+                else:
+                    _name = os.path.relpath(os.path.join(files_root, file.name), work_root)
                 files.append({
-                    'name'            : os.path.join(files_root, file.name),
+                    'name'            : _name,
                     'file_type'       : file.file_type,
                     'is_include_file' : file.is_include_file,
                     'logical_name'    : file.logical_name})
@@ -244,6 +269,7 @@ class CoreManager(object):
 
         top_core = cores[-1]
         return {
+            'version'      : '0.1',
             'files'        : files,
             'name'         : top_core.sanitized_name,
             'parameters'   : parameters,
@@ -253,15 +279,3 @@ class CoreManager(object):
             'vpi'          : vpi,
         }
 
-    def setup(self, vlnv, flags, export, export_root=None):
-        cores = self.get_depends(vlnv, flags)
-        _flags = flags.copy()
-
-        for core in cores:
-            logger.info("Preparing " + str(core.name))
-            core.setup()
-
-            if export:
-                dst_dir = os.path.join(export_root, core.sanitized_name)
-                _flags['is_toplevel'] = (core.name == vlnv)
-                core.export(dst_dir, _flags)

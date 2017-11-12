@@ -51,14 +51,20 @@ ARACHNE_PNR_OPTIONS := {arachne_pnr_options}
                     yosys_file.write("read_verilog {}\n".format(f.name))
                 elif f.file_type == 'PCF':
                     pcf_files.append(f.name)
+                elif f.file_type == 'user':
+                    pass
             for key, value in self.vlogparam.items():
                 _s = "chparam -set {} {} $abstract\{}\n"
                 yosys_file.write(_s.format(key,
-                                           self._param_value_str(value, strings_in_quotes=True),
+                                           self._param_value_str(value, '"'),
                                            self.toplevel))
 
             yosys_file.write("verilog_defaults -pop\n")
             yosys_file.write("synth_ice40")
+            try:
+                yosys_file.write(' ' + ' '.join(self.tool_options['yosys_synth_options']))
+            except KeyError:
+                pass
             yosys_file.write(" -blif {}.blif".format(self.name))
             if self.toplevel:
                 yosys_file.write(" -top " + self.toplevel)

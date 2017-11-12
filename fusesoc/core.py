@@ -95,14 +95,19 @@ class Core:
         self.simulators = self.main.simulators
 
         if self.main.backend:
-            self.backend = getattr(self, self.main.backend)
+            try:
+                self.backend = getattr(self, self.main.backend)
+            except AttributeError:
+                raise SyntaxError('Invalid backend "{}"'.format(self.main.backend))
 
         self._collect_filesets()
 
         cache_root = os.path.join(Config().cache_root, self.sanitized_name)
         if config.has_section('plusargs'):
-            logger.warning("plusargs section is deprecated and will not be parsed by FuseSoC. Please migrate to parameters in " + str(self.name))
+            self._warning("plusargs section is deprecated and will not be parsed by FuseSoC. Please migrate to parameters")
             self.plusargs = Plusargs(dict(config.items('plusargs')))
+        if config.has_section('verilator') and config.has_option('verilator', 'define_files'):
+            self._warning("verilator define_files are deprecated")
         if config.has_section('provider'):
             items    = dict(config.items('provider'))
             patch_root = os.path.join(self.core_root, 'patches')
@@ -137,6 +142,7 @@ class Core:
             return 'local'
 
     def get_depends(self, flags={}):
+        self._debug("Getting dependencies for flags {}".format(str(flags)))
         _depends = self.depend
         try:
             _depends += getattr(self, flags['tool']).depend
@@ -146,11 +152,7 @@ class Core:
 
     def get_files(self, flags={}):
         files = []
-        if flags['tool'] in ['ghdl', 'icarus', 'isim', 'modelsim', 'rivierapro', 'xsim']:
-            flow = 'sim'
-        elif flags['tool'] in ['icestorm', 'ise', 'quartus', 'verilator', 'vivado']:
-            flow = 'synth'
-
+        flow = self._get_flow(flags)
         usage = set([flow, flags['tool']])
 
         for fs in self.file_sets:
@@ -159,18 +161,21 @@ class Core:
         return files
 
     def get_parameters(self, flags={}):
+        self._debug("Getting parameters for flags '{}'".format(str(flags)))
         parameters = []
         for k, v in self.parameter.items():
             if (v.scope == 'public') or flags['is_toplevel']:
                 v.name = k
                 parameters.append(v)
+        self._debug("Found parameters {}".format(parameters))
         return parameters
 
     def get_scripts(self, flags):
         scripts = {}
         if self.scripts:
             env = {'BUILD_ROOT' : Config().build_root}
-            if flags['flow'] is 'sim':
+            flow = self._get_flow(flags)
+            if flow is 'sim':
                 for s in ['pre_build_scripts', 'pre_run_scripts', 'post_run_scripts']:
                     v = getattr(self.scripts, s)
                     if v:
@@ -178,7 +183,7 @@ class Core:
             #For backwards compatibility we only use the script from the
             #top-level core in synth flows. We also rename them here to match
             #the backend stages and set the SYSTEM_ROOT env var
-            elif flags['flow'] is 'synth' and flags['is_toplevel']:
+            elif flow is 'synth' and flags['is_toplevel']:
                 env['SYSTEM_ROOT'] = self.files_root
                 v = self.scripts.pre_synth_scripts
                 if v:
@@ -189,27 +194,35 @@ class Core:
         return scripts
 
     def get_toplevel(self, flags={}):
+        self._debug("Getting toplevel for flags {}".format(str(flags)))
         if flags['tool'] == 'verilator':
-            return self.verilator.top_module
-        if flags['flow'] == 'synth':
-            return self.backend.top_module
-        if 'target' in flags and flags['target']:
-            return flags['target']
+            toplevel = self.verilator.top_module
+        elif self._get_flow(flags) == 'synth':
+            toplevel = self.backend.top_module
+        elif 'testbench' in flags and flags['testbench']:
+            toplevel = flags['testbench']
         else:
-            return self.simulator['toplevel']
+            toplevel = self.simulator['toplevel']
+        self._debug("Matched toplevel {}".format(toplevel))
+        return toplevel
 
     def get_tool(self, flags):
+        self._debug("Getting tool for flags {}".format(str(flags)))
+        tool = None
+        flow = self._get_flow(flags)
         if flags['tool']:
-            return flags['tool']
-        elif flags['flow'] == 'sim':
-            if len(self.simulators) > 0:
-                return self.simulators[0]
-        elif flags['flow'] == 'synth':
+            tool =  flags['tool']
+        elif flags['target'] == 'synth':
             if hasattr(self.main, 'backend'):
-                return self.main.backend
-        return None
+                tool = self.main.backend
+        else:
+            if len(self.simulators) > 0:
+                tool = self.simulators[0]
+        self._debug(" Matched tool {}".format(tool))
+        return tool
 
     def get_tool_options(self, flags):
+        self._debug("Getting tool options for flags {}".format(str(flags)))
         options = {}
         section = getattr(self, flags['tool'])
 
@@ -227,9 +240,11 @@ class Core:
                         if (type(_member) == str) and _member.startswith('"') and _member.endswith('"'):
                             _member = _member[1:-1]
                         options[member] = _member
+        self._debug("Found tool options {}".format(str(options)))
         return options
 
     def get_vpi(self, flags):
+        self._debug("Getting VPI libraries for flags {}".format(flags))
         vpi = []
         if self.vpi:
             vpi.append({'name'         : self.sanitized_name,
@@ -237,7 +252,15 @@ class Core:
                         'include_dirs' : self.vpi.include_dirs,
                         'libs'         : [l[2:] for l in self.vpi.libs],
             })
+        self._debug(" Matched VPI libraries {}".format([v['name'] for v in vpi]))
         return vpi
+
+    def get_work_root(self, flags):
+        if self._get_flow(flags) is 'synth':
+            s = 'bld-'
+        else:
+            s = 'sim-'
+        return s+flags['tool']
 
     def setup(self):
         if self.provider:
@@ -255,6 +278,8 @@ class Core:
             for script in section:
                 src_files += script.keys()
 
+        self._debug("Exporting {}".format(str(src_files)))
+
         dirs = list(set(map(os.path.dirname,src_files)))
         for d in dirs:
             if not os.path.exists(os.path.join(dst_dir, d)):
@@ -271,6 +296,20 @@ class Core:
                 else:
                     raise RuntimeError('Cannot find %s in :\n\t%s\n\t%s'
                                   % (f, self.files_root, self.core_root))
+
+    def _get_flow(self, flags):
+        flow = None
+        if 'tool' in flags:
+            if flags['tool'] in ['ghdl', 'icarus', 'isim', 'modelsim', 'rivierapro', 'xsim']:
+                flow = 'sim'
+            elif flags['tool'] in ['icestorm', 'ise', 'quartus', 'verilator', 'vivado']:
+                flow = 'synth'
+        elif 'target' in flags:
+            if flags['target'] is 'synth':
+                flow = 'synth'
+            elif flags['target'] is 'sim':
+                flow = 'sim'
+        return flow
 
     def _merge_system_file(self, system_file, config):
         def _replace(sec, src=None, dst=None):
@@ -358,6 +397,8 @@ class Core:
                 _files += _append_files(_b.sdc_files, 'SDC')
                 _files += _append_files(_b.tcl_files, 'tclSource')
                 del(_b.qsys_files)
+                del(_b.sdc_files)
+                del(_b.tcl_files)
             if _files:
                 self.file_sets.append(FileSet(name = "backend_files",
                                               file = _files,
@@ -387,6 +428,12 @@ class Core:
                                           private = True))
             self.export_files += [f.name for f in _files]
 
+    def _debug(self, msg):
+        logger.debug("{} : {}".format(str(self.name), msg))
+
+    def _warning(self, msg):
+        logger.warning("{} : {}".format(str(self.name), msg))
+
     def _parse_component(self, component_file):
         component_dir = os.path.dirname(component_file)
         component = Component()
@@ -408,6 +455,7 @@ class Core:
                 else:
                     f.is_include_file = False
                 f.logical_name = f.logicalName
+                f.copyto = ""
             #FIXME: Handle duplicates. Resolution function? (merge/replace, prio ipxact/core)
             _taken = False
             for fs in self.file_sets:

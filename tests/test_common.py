@@ -39,33 +39,37 @@ def get_core(core):
     return _get_core(core)
 
 def get_sim(sim, core, export=False):
-    import os.path
-    from fusesoc.coremanager import CoreManager
-    from fusesoc.config import Config
-    from fusesoc.main import _import
-
-    flags = {'flow' : 'sim',
+    flags = {'target' : 'sim',
              'tool' : sim}
-
-    eda_api = CoreManager().get_eda_api(core.name, flags)
-    export_root = os.path.join(Config().build_root, core.name.sanitized_name, 'src')
-    work_root   = os.path.join(Config().build_root, core.name.sanitized_name, 'sim-'+sim)
-    
-    CoreManager().setup(core.name, flags, export=export, export_root=export_root)
-    return _import(sim)(eda_api=eda_api, work_root=work_root)
+    return get_backend(core, flags, export)
 
 def get_synth(tool, core, export=False):
+    flags = {'target' : 'synth',
+             'tool' : tool}
+    return get_backend(core, flags, export)
+
+def get_backend(core, flags, export):
     import os.path
+    import tempfile
+    import yaml
     from fusesoc.config import Config
     from fusesoc.coremanager import CoreManager
     from fusesoc.main import _import
 
-    flags = {'flow' : 'synth',
-             'tool' : tool}
+    if export:
+        export_root = os.path.join(Config().build_root, core.name.sanitized_name, 'src')
+    else:
+        export_root = None
+    work_root   = os.path.join(Config().build_root,
+                               core.name.sanitized_name,
+                               core.get_work_root(flags))
+    eda_api = CoreManager().setup(core.name, flags, work_root, export_root)
 
-    eda_api = CoreManager().get_eda_api(core.name, flags)
-    work_root   = os.path.join(Config().build_root, core.name.sanitized_name, 'bld-'+tool)
-    return _import(core.main.backend)(eda_api=eda_api, work_root=work_root)
+    (h, eda_api_file) = tempfile.mkstemp()
+    with open(eda_api_file,'w') as f:
+        f.write(yaml.dump(eda_api))
+
+    return _import(flags['tool'])(eda_api_file=eda_api_file, work_root=work_root)
 
 cmdlineargs = ' --cmdlinearg_bool --cmdlinearg_int=42 --cmdlinearg_str=hello'.split()
 plusargs    = ' --plusarg_bool --plusarg_int=42 --plusarg_str=hello'.split()

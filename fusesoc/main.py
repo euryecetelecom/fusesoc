@@ -3,9 +3,12 @@ import argparse
 import importlib
 import os
 import platform
+import shutil
 import subprocess
 import sys
 import signal
+import yaml
+
 from fusesoc import __version__
 
 #Check if this is run from a local installation
@@ -61,11 +64,9 @@ def build(args):
     do_configure = True
     do_build = not args.setup
     do_run = False
-    flags = {'flow' : 'synth',
-             'tool' : None,
-             'target' : args.target}
-    run_backend('build',
-                not args.no_export,
+    flags = {'target' : 'synth',
+             'tool' : None,}
+    run_backend(not args.no_export,
                 do_configure, do_build, do_run,
                 flags, args.system, args.backendargs)
 
@@ -73,7 +74,7 @@ def pgm(args):
     do_configure = False
     do_build = False
     do_run = True
-    flags = {'flow' : 'synth',
+    flags = {'target' : 'synth',
              'tool' : None}
     run_backend('build',
                 do_configure, do_build, do_run,
@@ -167,21 +168,11 @@ def core_info(args):
 def list_systems(args):
     print("Available systems:")
     for core in CoreManager().get_cores().values():
-        if core.get_tool({'flow' : 'synth', 'tool' : None}):
+        if core.get_tool({'target' : 'synth', 'tool' : None}):
             print(str(core.name))
 
-def run_backend(tool_type, export, do_configure, do_build, do_run, flags, system, backendargs):
-    if tool_type == 'simulator':
-        tool_type_short = 'sim'
-        tool_error = "No simulator was supplied on command line or found in '{}' core description"
-        build_error = "Failed to build simulation model"
-        run_error   = "Failed to run the simulation"
-    else:
-        tool_type_short = 'bld'
-        tool_error = "Unable to find synthesis info for '{}'"
-        build_error = "Failed to build FPGA"
-        run_error   = "Failed to program the FPGA"
-
+def run_backend(export, do_configure, do_build, do_run, flags, system, backendargs):
+    tool_error = "No tool was supplied on command line or found in '{}' core description"
     core = _get_core(system)
     tool = core.get_tool(flags)
     if not tool:
@@ -192,59 +183,76 @@ def run_backend(tool_type, export, do_configure, do_build, do_run, flags, system
         export_root = os.path.join(Config().build_root, core.name.sanitized_name, 'src')
     else:
         export_root = None
-    work_root   = os.path.join(Config().build_root, core.name.sanitized_name, tool_type_short+'-'+tool)
-    try:
-        eda_api = CoreManager().get_eda_api(core.name, flags, export_root)
-    except DependencyError as e:
-        logger.error(e.msg + "\nFailed to resolve dependencies for {}".format(system))
-        exit(1)
+    work_root   = os.path.join(Config().build_root,
+                               core.name.sanitized_name,
+                               core.get_work_root(flags))
+    eda_api_file = os.path.join(work_root,
+                                core.name.sanitized_name+'.eda.yml')
+    if do_configure:
+        try:
+            eda_api = CoreManager().setup(core.name,
+                                          flags,
+                                          work_root=work_root,
+                                          export_root=export_root)
+        except DependencyError as e:
+            logger.error(e.msg + "\nFailed to resolve dependencies for {}".format(system))
+            exit(1)
+        except SyntaxError as e:
+            logger.error(e.msg)
+            exit(1)
+        with open(eda_api_file,'w') as f:
+            f.write(yaml.dump(eda_api))
+
+    #Frontend/backend separation
 
     try:
-        backend = _import(tool)(eda_api=eda_api, work_root=work_root)
+        backend = _import(tool)(eda_api_file=eda_api_file, work_root=work_root)
     except ImportError:
         logger.error('Backend "{}" not found'.format(tool))
         exit(1)
     except RuntimeError as e:
         logger.error(str(e))
         exit(1)
+    except FileNotFoundError as e:
+        logger.error('Could not find EDA API file "{}"'.format(e.filename))
+        exit(1)
+
     if do_configure:
         try:
-            CoreManager().setup(core.name, flags, export=export, export_root=export_root)
             backend.configure(backendargs)
             print('')
         except RuntimeError as e:
             logger.error("Failed to configure the system")
             logger.error(str(e))
             exit(1)
+
     if do_build:
         try:
             backend.build()
         except RuntimeError as e:
-            logger.error(build_error + " : " + str(e))
+            logger.error("Failed to build {} : {}".format(str(core.name),
+                                                          str(e)))
             exit(1)
 
     if do_run:
         try:
             backend.run(backendargs)
         except RuntimeError as e:
-            logger.error(run_error + " : " + str(e))
-            logger.error(str(e))
+            logger.error("Failed to run {} : {}".format(str(core.name),
+                                                        str(e)))
             exit(1)
 
 def sim(args):
-    do_configure = not args.keep or not os.path.exists(backend.work_root)
+    do_configure = not args.keep
     do_build = not args.setup
     do_run   = not (args.build_only or args.setup)
-    if args.testbench:
-        logger.warn("--testbench is deprecated. Use --target instead")
-        if not args.target:
-            args.target = args.testbench
     
     flags = {'flow' : 'sim',
              'tool' : args.sim,
-             'target' : args.target}
-    run_backend('simulator',
-                not args.no_export,
+             'target' : 'sim',
+             'testbench' : args.testbench
+    }
+    run_backend(not args.no_export,
                 do_configure, do_build, do_run,
                 flags, args.system, args.backendargs)
 
@@ -307,6 +315,12 @@ def run(args):
     else:
         config.archbits = 64 if platform.architecture()[0] == '64bit' else 32
         logger.debug("Autodetected " + str(config.archbits) + "-bit mode")
+    if sys.platform == "win32":
+        config.cygpath = vars(args)['cygpath']
+        if config.cygpath:
+            logger.debug("Using cygpath translation")
+        else:
+            logger.debug("Using native Windows paths")
     # Run the function
     args.func(args)
 
@@ -324,6 +338,7 @@ def main():
     parser.add_argument('--64', help='Force 64 bit mode for invoked tools', action='store_true')
     parser.add_argument('--monochrome', help='Don\'t use color for messages', action='store_true')
     parser.add_argument('--verbose', help='More info messages', action='store_true')
+    parser.add_argument('--cygpath', help='Use POSIX paths on Windows (no effect on POSIX systems)', action='store_true')
 
     # build subparser
     parser_build = subparsers.add_parser('build', help='Build an FPGA load module')
