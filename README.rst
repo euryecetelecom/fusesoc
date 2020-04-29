@@ -9,7 +9,7 @@ FuseSoC
 
 Introduction
 ------------
-FuseSoC is a package manager and a set of build tools for HDL (Hardware Description Language) code.
+FuseSoC is an award-winning package manager and a set of build tools for HDL (Hardware Description Language) code.
 
 Its main purpose is to increase reuse of IP (Intellectual Property) cores and be an aid for creating, building and simulating SoC solutions.
 
@@ -25,7 +25,7 @@ Its main purpose is to increase reuse of IP (Intellectual Property) cores and be
 
 - let other projects use your code
 
-- set up continuous integration 
+- set up continuous integration
 
 **FuseSoC is non-intrusive** Most existing designs doesn't need any changes to work with FuseSoC. Any FuseSoC-specific patches can be applied on the fly during implementation or simulation
 
@@ -55,7 +55,7 @@ Install latest stable version:
 Install latest development version from git:
 
 ::
-   
+
    git clone https://github.com/olofk/fusesoc
    cd fusesoc
    sudo pip install -e .
@@ -65,7 +65,7 @@ FuseSoC should now be installed. Next step is to download the standard IP core l
 *FuseSoC is currently in a transition phase and will prompt for the old standard library (* orpsoc-cores_ *) in addition to the new one (* fusesoc-cores_ *)*
 
 ::
-   
+
    fusesoc init
 
 Test your installation by running ``fusesoc list-cores``. This should return the list of cores that FuseSoC has found.
@@ -82,7 +82,10 @@ Did it work? Great! Check out the online_ documentation to learn more about crea
 Documentation
 -------------
 
-Documentation can be viewed online_. To manually create HTML documentation from the asciidoc sources, run ``cd doc && make`` from the repo root
+The current documentation can be viewed online_.
+
+An effort to update the documentation is in progress. To check this new
+documentation, run ``cd doc && make html`` from the repo root.
 
 Further reading
 ---------------
@@ -95,7 +98,7 @@ http://www.rs-online.com/designspark/electronics/eng/blog/booting-linux-on-a-de0
 There is also some FuseSoC-related articles and extended release information on my blog_
 
 .. _blog: https://olofkindgren.blogspot.com/search/label/FuseSoC
-.. _online: doc/fusesoc.adoc
+.. _online: https://fusesoc.readthedocs.io/en/latest/index.html
 .. _orpsoc-cores: https://github.com/openrisc/orpsoc-cores
 .. _fusesoc-cores: https://github.com/fusesoc/fusesoc-cores
 .. _`bug report`: https://github.com/olofk/fusesoc/issues

@@ -1,16 +1,36 @@
 language: python
-dist: trusty
-python:
-  - "2.7"
-  - "3.4"
-  - "3.5"
-install:
-  - "pip install ."
+cache:
+  pip: true
+  directories:
+    - $HOME/.cache/pre-commit
+
 env:
-  - MODEL_TECH=dummy_value
+  - MODEL_TECH=dummy_value TEST_CMD="pytest"
+
+matrix:
+  include:
+    - name: "lint"
+      python: 3.8
+      env:
+        - TEST_CMD="pre-commit run --all-files --show-diff-on-failure"
+    - name: "3.5"
+      python: 3.5
+    - name: "3.6"
+      python: 3.6
+    - name: "3.7"
+      python: 3.7
+    - name: "3.8"
+      python: 3.8
+
+install:
+  - python -m pip install -U pip setuptools
+  - pip install -r dev-requirements.txt
+  - pip install .
+  - pre-commit install
+
+  - fusesoc init -y
+  - fusesoc list-cores
+  - fusesoc library update
+
 script:
-  - "fusesoc init -y"
-  - "fusesoc list-systems"
-  - "fusesoc list-cores"
-  - "fusesoc update"
-  - "py.test"
+  - $TEST_CMD

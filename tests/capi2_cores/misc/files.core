@@ -1,0 +1,61 @@
+CAPI=2:
+name: ::copytocore:0
+filesets:
+  logical_name:
+    files:
+      - vlogfile : {logical_name : overridden_logical_name}
+      - vhdlfile
+    file_type : vhdlSource
+    logical_name : default_logical_name
+
+  copyfiles:
+    files:
+      - subdir/dummy.extra: {copyto : copied.file, file_type : user}
+      - dummy.tcl: {copyto : subdir/another.file}
+    file_type : tclSource
+  unusedfiles:
+    files:
+      - idontexist
+  miscfiles:
+    files:
+      - vlogfile: {file_type : verilogSource, is_include_file : true}
+      - vhdlfile: {is_include_file : false}
+    file_type : vhdlSource
+  pickme:
+    files:
+      - pickthisfile: {file_type : user}
+  dontpickme:
+    files:
+      - dontpickthisfile: {file_type : user}
+  script_fileset:
+    files:
+      - scriptfile : {file_type : user}
+
+  fileset_in_files_root:
+    files: [targets.info]
+  vpi_fileset:
+    files:
+      - vpifile : {file_type : CSource}
+
+scripts:
+  script_with_fileset:
+    filesets : [script_fileset]
+targets:
+  default:
+    filesets: [
+    logical_name,
+    copyfiles,
+    miscfiles,
+    "tool_icarus? (pickme)",
+    "!tool_icarus? (dontpickme)"]
+    hooks:
+      pre_build: [script_with_fileset]
+    vpi : [vpi_with_fileset]
+  will_fail:
+    filesets : [unusedfiles]
+  files_root_test:
+    filesets: [fileset_in_files_root]
+
+vpi:
+  vpi_with_fileset:
+    filesets : [vpi_fileset]

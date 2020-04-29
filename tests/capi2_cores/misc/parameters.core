@@ -1,0 +1,66 @@
+CAPI=2:
+name: ::parametersscore:0
+parameters:
+  param1:
+    datatype  : str
+    paramtype : vlogparam
+
+  param2:
+    datatype: str
+    default: default_value
+    description: This is a parameter
+    paramtype: vlogparam
+
+  intparam:
+    datatype  : int
+    default   : 5446
+    paramtype : vlogparam
+
+  boolfalse:
+    datatype  : bool
+    default   : false
+    paramtype : vlogparam
+
+  booltrue:
+    datatype  : bool
+    default   : true
+    paramtype : vlogparam
+
+  int0:
+    datatype  : int
+    default   : 0
+    paramtype : vlogparam
+
+  emptystr:
+    datatype  : str
+    default   : ""
+    paramtype : vlogparam
+
+  condparamtype:
+    datatype : str
+    paramtype : "tool_icarus? (plusarg) !tool_icarus? (vlogparam)"
+
+targets:
+  default:
+    parameters: [param1]
+  noparameters: {}
+  nonexistant:
+    parameters: [idontexist]
+
+  multiparameters:
+    parameters : [param1, param2]
+
+  override:
+    parameters : [param1=def, param2=new_def, intparam=0xdeadbeef, boolfalse=true, booltrue=false]
+  types:
+    parameters : [param2, intparam, boolfalse, booltrue]
+
+  use_flags:
+    parameters:
+      - "tool_icarus? (param1)"
+      - "!tool_icarus? (param2)"
+      - condparamtype
+
+  empty:
+    parameters:
+      [int0, emptystr]

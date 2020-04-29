@@ -1,38 +1,151 @@
-import os
 import pytest
-import shutil
 
-from fusesoc.coremanager import CoreManager
-from test_common import get_core
+
+def test_deptree():
+    from fusesoc.coremanager import CoreManager
+    from fusesoc.config import Config
+    from fusesoc.librarymanager import Library
+    from fusesoc.vlnv import Vlnv
+    import os
+
+    tests_dir = os.path.dirname(__file__)
+    deptree_cores_dir = os.path.join(tests_dir, "capi2_cores", "deptree")
+    lib = Library("deptree", deptree_cores_dir)
+
+    cm = CoreManager(Config())
+    cm.add_library(lib)
+
+    root_core = cm.get_core(Vlnv("::deptree-root"))
+
+    # Check dependency tree
+    deps = cm.get_depends(root_core.name, {})
+    deps_names = [str(c) for c in deps]
+    deps_names_expected = [
+        "::deptree-child2:0",
+        "::deptree-child3:0",
+        "::deptree-child1:0",
+        "::deptree-root:0",
+    ]
+    assert deps_names == deps_names_expected
+
+    # Check files in dependency tree
+    files_expected = [
+        "child2-fs1-f1.sv",
+        "child2-fs1-f2.sv",
+        "child3-fs1-f1.sv",
+        "child3-fs1-f2.sv",
+        "child1-fs1-f1.sv",
+        "child1-fs1-f2.sv",
+        "root-fs1-f1.sv",
+        "root-fs1-f2.sv",
+        "root-fs2-f1.sv",
+        "root-fs2-f2.sv",
+    ]
+    files = []
+    for d in deps:
+        files += [f.name for f in d.get_files({})]
+
+    assert files == files_expected
+
 
 def test_copyto():
-    tests_dir = os.path.dirname(__file__)
-    core      = get_core("copytocore")
-    flags = {'tool' : 'icarus'}
-    
-    export_root = None
-    work_root   = os.path.join(tests_dir,
-                               'build',
-                               core.name.sanitized_name,
-                               core.get_work_root(flags))
-    if os.path.exists(work_root):
-        for f in os.listdir(work_root):
-            if os.path.isdir(os.path.join(work_root, f)):
-                shutil.rmtree(os.path.join(work_root, f))
-            else:
-                os.remove(os.path.join(work_root, f))
-    else:
-        os.makedirs(work_root)
+    import os
+    import tempfile
 
-    eda_api = CoreManager().setup(core.name, flags, work_root, None)
+    from fusesoc.config import Config
+    from fusesoc.coremanager import CoreManager
+    from fusesoc.edalizer import Edalizer
+    from fusesoc.librarymanager import Library
+    from fusesoc.vlnv import Vlnv
 
-    assert eda_api['files'] == [{'file_type': 'user',
-                                 'logical_name': '',
-                                 'name': 'copied.file',
-                                 'is_include_file': False},
-                                {'file_type': 'tclSource',
-                                 'logical_name': '',
-                                 'name': 'subdir/another.file',
-                                 'is_include_file': False}]
-    assert os.path.exists(os.path.join(work_root, 'copied.file'))
-    assert os.path.exists(os.path.join(work_root, 'subdir', 'another.file'))
+    flags = {"tool": "icarus"}
+
+    work_root = tempfile.mkdtemp(prefix="copyto_")
+
+    core_dir = os.path.join(os.path.dirname(__file__), "cores", "misc", "copytocore")
+    lib = Library("misc", core_dir)
+
+    cm = CoreManager(Config())
+    cm.add_library(lib)
+
+    core = cm.get_core(Vlnv("::copytocore"))
+
+    edalizer = Edalizer(
+        toplevel=core.name,
+        flags=flags,
+        core_manager=cm,
+        cache_root=None,
+        work_root=work_root,
+        export_root=None,
+        system_name=None,
+    )
+    edalizer.run()
+
+    eda_api = edalizer.edalize
+
+    assert eda_api["files"] == [
+        {
+            "file_type": "user",
+            "core": "::copytocore:0",
+            "logical_name": "",
+            "name": "copied.file",
+            "is_include_file": False,
+        },
+        {
+            "file_type": "tclSource",
+            "core": "::copytocore:0",
+            "logical_name": "",
+            "name": "subdir/another.file",
+            "is_include_file": False,
+        },
+    ]
+    assert os.path.exists(os.path.join(work_root, "copied.file"))
+    assert os.path.exists(os.path.join(work_root, "subdir", "another.file"))
+
+
+def test_export():
+    import os
+    import tempfile
+
+    from fusesoc.config import Config
+    from fusesoc.coremanager import CoreManager
+    from fusesoc.edalizer import Edalizer
+    from fusesoc.librarymanager import Library
+    from fusesoc.vlnv import Vlnv
+
+    flags = {"tool": "icarus"}
+
+    build_root = tempfile.mkdtemp(prefix="export_")
+    export_root = os.path.join(build_root, "exported_files")
+    work_root = os.path.join(build_root, "work")
+
+    core_dir = os.path.join(os.path.dirname(__file__), "cores")
+
+    cm = CoreManager(Config())
+    cm.add_library(Library("cores", core_dir))
+
+    core = cm.get_core(Vlnv("::wb_intercon"))
+
+    edalizer = Edalizer(
+        toplevel=core.name,
+        flags=flags,
+        core_manager=cm,
+        cache_root=None,
+        work_root=work_root,
+        export_root=export_root,
+        system_name=None,
+    )
+    edalizer.run()
+
+    for f in [
+        "wb_intercon_1.0/dummy_icarus.v",
+        "wb_intercon_1.0/bench/wb_mux_tb.v",
+        "wb_intercon_1.0/bench/wb_upsizer_tb.v",
+        "wb_intercon_1.0/bench/wb_intercon_tb.v",
+        "wb_intercon_1.0/bench/wb_arbiter_tb.v",
+        "wb_intercon_1.0/rtl/verilog/wb_data_resize.v",
+        "wb_intercon_1.0/rtl/verilog/wb_mux.v",
+        "wb_intercon_1.0/rtl/verilog/wb_arbiter.v",
+        "wb_intercon_1.0/rtl/verilog/wb_upsizer.v",
+    ]:
+        assert os.path.isfile(os.path.join(export_root, f))

@@ -18,39 +18,38 @@ else:
 
 from fusesoc.provider.provider import Provider
 
-class ProviderURL(Provider):
 
+class Url(Provider):
     def _checkout(self, local_dir):
-        url = self.config.get('url')
-        logger.info("Checking out " + url + " to " + local_dir)
+        url = self.config.get("url")
+        logger.info("Downloading...")
+        user_agent = self.config.get("user-agent")
+        if not self.config.get("verify_cert", True):
+            import ssl
+
+            ssl._create_default_https_context = ssl._create_unverified_context
+
+        if user_agent and sys.version_info[0] >= 3:
+            opener = urllib.build_opener()
+            opener.addheaders = [("User-agent", user_agent)]
+            urllib.install_opener(opener)
         try:
             (filename, headers) = urllib.urlretrieve(url)
-        except URLError as e:
-            raise RuntimeError("Failed to download '{}'. '{}'".format(url, e.reason))
-        except HTTPError:
+        except (URLError, HTTPError) as e:
             raise RuntimeError("Failed to download '{}'. '{}'".format(url, e.reason))
 
-        (cache_root, core) = os.path.split(local_dir)
-
-        filetype = self.config.get('filetype')
-        if filetype == 'tar':
+        filetype = self.config.get("filetype")
+        if filetype == "tar":
             t = tarfile.open(filename)
             t.extractall(local_dir)
-        elif filetype == 'zip':
+        elif filetype == "zip":
             with zipfile.ZipFile(filename, "r") as z:
                 z.extractall(local_dir)
-        elif filetype == 'simple':
-            # Splits the string at the last occurrence of sep, and
-            # returns a 3-tuple containing the part before the separator,
-            # the separator itself, and the part after the separator.
-            # If the separator is not found, return a 3-tuple containing
-            # two empty strings, followed by the string itself
-            segments = url.rpartition('/')
-            self.path = os.path.join(local_dir)
-            os.makedirs(self.path)
-            self.path = os.path.join(self.path, segments[2])
-            shutil.copy2(filename, self.path)
+        elif filetype == "simple":
+            _filename = url.rsplit("/", 1)[1]
+            os.makedirs(local_dir)
+            shutil.copy2(filename, os.path.join(local_dir, _filename))
         else:
-            raise RuntimeError("Unknown file type '" + filetype + "' in [provider] section")
-
-PROVIDER_CLASS = ProviderURL
+            raise RuntimeError(
+                "Unknown file type '" + filetype + "' in [provider] section"
+            )

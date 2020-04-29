@@ -1,0 +1,11 @@
+CAPI=2:
+name: ::targets:0
+targets:
+  default: {}
+  empty_target: {}
+  target_with_tool_options:
+    tools:
+      icarus:
+        iverilog_options : ['a','few','options']
+      vivado:
+        part: xc7a35tcsg324-1

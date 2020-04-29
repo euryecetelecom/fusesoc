@@ -1,3 +1,183 @@
+1.10 2020-03-04 Olof Kindgren <olof.kindgren@gmail.com>
+======================================================
+* Write resolved dependency tree to EDAM structure
+* Add core affiliation for each file in EDAM
+* Massively improved documentation
+* Add library list command
+* Always run configure before build
+* Support older (<2.3.3) git versions
+* Parse arguments before sending to edalize configure
+* Support dependency ranges with ~ and ^
+
+* + improved error handling, bug fixes and refactoring
+
+Contributors:
+Anonymous
+Alan Gibson <alangibson.misc@gmail.com>
+Olof Kindgren <olof.kindgren@gmail.com>
+Philipp Wagner <philipp.wagner@tum.de>
+Tobias Wölfel <tobias.woelfel@mailbox.org>
+
+1.9.3 2019-10-14 Olof Kindgren <olof.kindgren@gmail.com>
+======================================================
+* Support setting logical_name on individual files
+* Add description field to targets
+* Make unknown CAPI2 keys non-critical
+* Make lists appendable
+* Store workspace-local libraries in fusesoc_libraries
+* Experimental support for use flags
+
+* + improved error handling, bug fixes and refactoring
+
+Contributors:
+Anonymous
+Mark Saunders
+Michał Kruszewski <mkru@protonmail.com>
+Olof Kindgren <olof.kindgren@gmail.com>
+
+1.9.2 2019-06-17 Olof Kindgren <olof.kindgren@gmail.com>
+======================================================
+* Add --build-root switch to specify build directory
+* Fix yaml deprecation warnings
+* Support conditionals in parameter types
+* Add --system-name flag to set system name
+
+* + improved error handling, bug fixes and refactoring
+
+Contributors:
+Anonymous
+Jan Schiefer
+Jonathan Balkind <jbalkind@princeton.edu>
+Olof Kindgren <olof.kindgren@gmail.com>
+Philipp Wagner <philipp.wagner@tum.de>
+Tobias Woelfel <tobias.woelfel@mailbox.org>
+
+1.9.1 2019-03-03 Olof Kindgren <olof.kindgren@gmail.com>
+======================================================
+* Fix uncachable cores
+* Add position argument for generators
+* Add fusesoc core sub commands
+* Add sphinx documentation
+
+* + improved error handling, bug fixes and refactoring
+
+Contributors:
+Anonymous
+Ben Reynwar <ben@reynwar.net>
+Euripedes Rocha <rocha.euripedes@gmail.com>
+Olof Kindgren <olof.kindgren@gmail.com>
+
+1.9 2018-12-17 Olof Kindgren <olof.kindgren@gmail.com>
+======================================================
+* Add generators support
+* Split out edalize to a separate package
+* CAPI1 support for Trellis backend
+* CAPI1 support for VCS backend
+
+* + improved error handling, bug fixes and refactoring
+
+Contributors:
+Anonymous
+David Shah <dave@ds0.me>
+Jonathan Balkind <jbalkind@princeton.edu>
+Olof Kindgren <olof.kindgren@gmail.com>
+Philipp Wagner <philipp.wagner@tum.de>
+
+
+
+1.8.4 2018-08-18 Olof Kindgren <olof.kindgren@gmail.com>
+======================================================
+* Fix matching of default target for CAPI2 cores
+* Fix VHDL 2008 usage for GHDL
+* Add support for nextpnr in the icestorm backend
+* Allow setting user-agent in url provider
+
+* + improved error handling, bug fixes and refactoring
+
+Contributors:
+Euripedes Rocha <rocha.euripedes@gmail.com>
+Olof Kindgren <olof.kindgren@gmail.com>
+
+1.8.3 2018-07-24 Olof Kindgren <olof.kindgren@gmail.com>
+======================================================
+* Allow setting default timescale for Icarus
+* Support VHDL libraries in Quartus backend
+* Search for cores in subdirectories of other cores
+* Allow overriding parameter default values per target
+
+* + improved error handling, bug fixes and refactoring
+
+Contributors:
+Anonymous
+Olof Kindgren <olof.kindgren@gmail.com>
+Philipp Wagner <philipp.wagner@tum.de>
+Piotr Esden-Tempski <piotr@esden.net>
+
+1.8.2 2018-06-27 Olof Kindgren <olof.kindgren@gmail.com>
+======================================================
+* Ignore directory tree with a FUSESOC_IGNORE file
+* Add lint mode for verilator backend
+* Split out backends to separate edalize module
+* Add spyglass backend
+* CAPI2: Allow toplevel to be specified as string
+* CAPI2: Expand environment variables in file names
+
+* + improved error handling, bug fixes and refactoring
+
+Contributors:
+Olof Kindgren <olof.kindgren@gmail.com>
+Philipp Wagner <philipp.wagner@tum.de>
+
+1.8.1 2018-03-22 Olof Kindgren <olof.kindgren@gmail.com>
+======================================================
+* Implement sync-type to determine library provider
+* Add support for all tools in CAPI2
+* Disable logfile by default
+* Add bash completion script
+* Add --global flag to select fusesoc.conf file
+* Redefine script (hooks) section in EDA API
+* Add hooks support for CAPI2
+
+* + improved error handling, bug fixes and refactoring
+
+Contributors:
+Andrew Wygle <awygle@gmail.com>
+Olof Kindgren <olof.kindgren@gmail.com>
+Philipp Wagner <philipp.wagner@tum.de>
+
+1.8 2018-01-31 Olof Kindgren <olof.kindgren@gmail.com>
+======================================================
+* Add BMM and PCF as valid file types
+* Support verilog defines in icestorm backend
+* Add --no-export option
+* Added versioning to EDA API
+* Improved path handling under cygwin
+* Support user files in all backends
+* Added copyto option
+* Exit isim properly after simulations
+* Add yosys_synth_options
+* Fix quoting of vlogparam strings in ISE
+* Pass arguments to ghdl in correct order
+* Support multiple toplevels in xsim
+* Add command-line option for specifying config file
+* Add library add command
+* Add library sections in config file
+* Add run command
+* Add experimental CAPI2 support
+* Add target and tool switches to build command
+
+* + improved error handling, bug fixes and refactoring
+
+Contributors:
+Ahmed Alsawi <ahmedalsawi2012@gmail.com>
+Andrew Wygle <awygle@gmail.com>
+Hatim Kanchwala <hatim@hatimak.me>
+Jack Gassett <jack.gassett@gadgetfactory.net>
+Olof Kindgren <olof.kindgren@gmail.com>
+Philipp Wagner <philipp.wagner@tum.de>
+Thomas Hornschuh <thomas@hornschuh-family.de>
+William D. Jones <thor0505@comcast.net>
+
 1.7 2017-07-21 Olof Kindgren <olof.kindgren@gmail.com>
 ======================================================
 * Exit with error code when synthesis fails

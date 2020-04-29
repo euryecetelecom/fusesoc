@@ -33,6 +33,9 @@ usage = icarus
 depend = elf-loader
 iverilog_options = -DSIM
 
+[isim]
+isim_options = some isim options
+
 [modelsim]
 depend = elf-loader
 
@@ -45,6 +48,9 @@ verilator_options = -Wno-fatal --trace
 tb_toplevel   = bench/verilator/tb.cpp
 top_module    = orpsoc_top
 cli_parser    = fusesoc
+
+[xsim]
+xsim_options = dummy options for xelab
 
 [parameter clear_ram]
 datatype    = bool
